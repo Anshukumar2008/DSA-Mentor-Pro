@@ -192,11 +192,14 @@ cursor:pointer;
 <button onclick="window.location.href='/leaderboard'">View</button>
 </div>
 
+{% if session["user"] == "anshuraj02092006@gmail.com" %}
 <div class="card">
 <h3>🛠 Admin Panel</h3>
 <p>Monitor all users & analytics</p>
 <button onclick="window.location.href='/admin'">Open</button>
 </div>
+{% endif %}
+
 
 <div class="card">
 <h3>🔥 Daily Challenge</h3>
@@ -213,3 +216,4 @@ cursor:pointer;
 
 </body>
 </html>
+
