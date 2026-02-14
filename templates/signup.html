@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Signup - DSA Mentor Pro</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins;
+}
+
+body{
+height:100vh;
+background:#020617;
+display:flex;
+align-items:center;
+justify-content:center;
+color:white;
+overflow:hidden;
+}
+
+/* animated bg */
+body::before{
+content:"";
+position:absolute;
+width:200%;
+height:200%;
+background:
+radial-gradient(circle at 20% 30%,#0ea5e9,transparent),
+radial-gradient(circle at 80% 70%,#22c55e,transparent),
+radial-gradient(circle at 50% 50%,#9333ea,transparent);
+opacity:0.25;
+animation:moveBg 18s linear infinite;
+z-index:-1;
+}
+
+@keyframes moveBg{
+0%{transform:translate(0,0);}
+50%{transform:translate(-10%,-10%);}
+100%{transform:translate(0,0);}
+}
+
+/* signup box */
+.signup-box{
+width:420px;
+padding:40px;
+background:rgba(255,255,255,0.04);
+border:1px solid rgba(255,255,255,0.08);
+border-radius:20px;
+backdrop-filter:blur(18px);
+box-shadow:0 0 45px rgba(34,211,238,0.25);
+text-align:center;
+animation:fadeIn 1s ease;
+}
+
+@keyframes fadeIn{
+from{opacity:0; transform:translateY(30px);}
+to{opacity:1; transform:translateY(0);}
+}
+
+h1{
+font-family:Orbitron;
+margin-bottom:10px;
+font-size:30px;
+background:linear-gradient(90deg,#38bdf8,#22c55e,#9333ea);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+
+.sub{
+color:#94a3b8;
+margin-bottom:25px;
+font-size:14px;
+}
+
+/* inputs */
+input{
+width:100%;
+padding:12px;
+margin:10px 0;
+border:none;
+outline:none;
+border-radius:12px;
+background:#020617;
+border:1px solid rgba(255,255,255,0.1);
+color:white;
+font-size:15px;
+}
+
+input:focus{
+border:1px solid #38bdf8;
+box-shadow:0 0 10px rgba(56,189,248,0.4);
+}
+
+/* button */
+button{
+width:100%;
+padding:13px;
+margin-top:15px;
+border:none;
+border-radius:25px;
+background:linear-gradient(90deg,#38bdf8,#22c55e);
+color:black;
+font-weight:700;
+font-size:16px;
+cursor:pointer;
+transition:.3s;
+}
+
+button:hover{
+transform:scale(1.05);
+box-shadow:0 0 25px rgba(56,189,248,0.6);
+}
+
+/* bottom */
+.bottom{
+margin-top:18px;
+font-size:14px;
+color:#94a3b8;
+}
+
+.bottom a{
+color:#38bdf8;
+text-decoration:none;
+font-weight:600;
+}
+
+.bottom a:hover{
+text-decoration:underline;
+}
+
+/* brand top */
+.brand{
+position:absolute;
+top:40px;
+font-family:Orbitron;
+font-size:26px;
+background:linear-gradient(90deg,#38bdf8,#22c55e,#9333ea);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+
+/* feature side text */
+.features{
+position:absolute;
+left:80px;
+top:35%;
+width:260px;
+color:#9ca3af;
+}
+
+.features h3{
+color:#38bdf8;
+margin-bottom:12px;
+}
+
+.features li{
+margin:8px 0;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="brand">🚀 DSA Mentor Pro AI</div>
+
+<!-- left feature panel -->
+<div class="features">
+<h3>Why join?</h3>
+<ul>
+<li>🤖 AI DSA Mentor</li>
+<li>🏆 Global leaderboard</li>
+<li>📊 Skill tracking</li>
+<li>💼 Placement focused</li>
+<li>🔥 Daily coding challenge</li>
+</ul>
+</div>
+
+<div class="signup-box">
+
+<h1>Create Account</h1>
+<div class="sub">Start your AI placement preparation journey</div>
+
+<form method="POST">
+
+<input type="text" name="name" placeholder="Full Name" required>
+<input type="email" name="email" placeholder="Email Address" required>
+<input type="password" name="password" placeholder="Create Password" required>
+
+<button type="submit">Create Account</button>
+
+</form>
+
+<div class="bottom">
+Already have account? <a href="/login">Login</a>
+</div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>AI Interview</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+<style>
+body{
+background:#020617;
+color:white;
+font-family:Poppins;
+text-align:center;
+}
+
+.container{
+width:90%;
+max-width:900px;
+margin:auto;
+padding-top:40px;
+}
+
+h1{
+font-family:Orbitron;
+background:linear-gradient(90deg,#38bdf8,#22c55e,#9333ea);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+
+#timer{
+font-size:22px;
+margin:15px;
+color:#facc15;
+}
+
+.chatbox{
+background:rgba(255,255,255,0.05);
+padding:20px;
+border-radius:15px;
+height:350px;
+overflow:auto;
+margin-top:20px;
+text-align:left;
+}
+
+.msg{
+margin:10px 0;
+padding:12px;
+border-radius:10px;
+white-space:pre-line;
+text-align:left;
+line-height:1.5;
+font-size:15px;
+}
+
+
+.ai{
+background:#0ea5e9;
+color:black;
+}
+
+.user{
+background:#22c55e;
+color:black;
+text-align:right;
+}
+
+textarea{
+width:100%;
+height:80px;
+margin-top:15px;
+border-radius:10px;
+padding:10px;
+}
+
+button{
+padding:12px 25px;
+margin-top:10px;
+border:none;
+border-radius:20px;
+background:linear-gradient(90deg,#38bdf8,#22c55e);
+font-weight:bold;
+cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🎤 AI Technical Interview</h1>
+<div id="timer">Time: 15:00</div>
+
+<div class="chatbox" id="chat"></div>
+
+<textarea id="ans" placeholder="Type your answer..."></textarea>
+<br>
+<button onclick="send()">Send Answer</button>
+
+</div>
+
+<script>
+
+// ---------- TIMER ----------
+let time=900;
+setInterval(()=>{
+time--;
+let m=Math.floor(time/60);
+let s=time%60;
+document.getElementById("timer").innerText="Time: "+m+":"+s;
+},1000);
+
+// ---------- CHAT ADD ----------
+function add(msg,cls){
+let div=document.createElement("div");
+div.className="msg "+cls;
+div.innerText=msg;
+document.getElementById("chat").appendChild(div);
+document.getElementById("chat").scrollTop=9999;
+}
+
+// ---------- VOICE CONTROL ----------
+function stopVoice(){
+speechSynthesis.cancel();
+}
+
+function speak(text){
+stopVoice();
+let speech=new SpeechSynthesisUtterance(text);
+speech.rate=1;
+speech.pitch=1;
+speech.lang="en-US";
+speechSynthesis.speak(speech);
+}
+
+// stop voice when leaving page
+window.onbeforeunload = stopVoice;
+
+// ---------- SEND ANSWER ----------
+function send(){
+
+let val=document.getElementById("ans").value.trim();
+if(val=="") return;
+
+stopVoice(); // stop previous voice
+add(val,"user");
+
+fetch("/interview_ai",{
+method:"POST",
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({msg:val})
+})
+.then(r=>r.json())
+.then(d=>{
+add(d.reply,"ai");
+speak(d.reply);
+
+if(d.result){
+setTimeout(()=>{
+stopVoice();
+alert("Interview Result: "+d.result+"\nScore: "+d.score);
+window.location.href="/dashboard";
+},1500);
+}
+});
+
+document.getElementById("ans").value="";
+}
+
+// ---------- START INTERVIEW ----------
+window.onload=function(){
+fetch("/interview_ai",{
+method:"POST",
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({msg:"start"})
+})
+.then(r=>r.json())
+.then(d=>{
+add(d.reply,"ai");
+speak(d.reply);
+});
+}
+</script>
+
+</body>
+</html>

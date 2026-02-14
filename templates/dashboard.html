@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dashboard - DSA Mentor Pro</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins;
+}
+
+body{
+background:#020617;
+color:white;
+}
+
+/* animated bg */
+body::before{
+content:"";
+position:fixed;
+width:200%;
+height:200%;
+background:
+radial-gradient(circle at 20% 30%,#0ea5e9,transparent),
+radial-gradient(circle at 80% 70%,#22c55e,transparent),
+radial-gradient(circle at 50% 50%,#9333ea,transparent);
+opacity:0.18;
+animation:moveBg 16s linear infinite;
+z-index:-1;
+}
+
+@keyframes moveBg{
+0%{transform:translate(0,0);}
+50%{transform:translate(-10%,-10%);}
+100%{transform:translate(0,0);}
+}
+
+.container{
+width:90%;
+max-width:1200px;
+margin:auto;
+padding:40px 0;
+}
+
+h1{
+font-family:Orbitron;
+font-size:38px;
+margin-bottom:20px;
+background:linear-gradient(90deg,#38bdf8,#22c55e,#9333ea);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+
+/* ===== STATS ===== */
+.stats{
+display:flex;
+gap:20px;
+flex-wrap:wrap;
+margin-top:20px;
+}
+
+.stat{
+flex:1;
+min-width:200px;
+background:rgba(255,255,255,0.04);
+border:1px solid rgba(255,255,255,0.08);
+padding:25px;
+border-radius:18px;
+backdrop-filter:blur(10px);
+text-align:center;
+}
+
+.stat h2{
+color:#22c55e;
+font-size:28px;
+}
+
+/* ===== GRID ===== */
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+gap:25px;
+margin-top:40px;
+}
+
+.card{
+background:rgba(255,255,255,0.03);
+border:1px solid rgba(255,255,255,0.08);
+padding:30px;
+border-radius:20px;
+text-align:center;
+transition:.3s;
+backdrop-filter:blur(12px);
+}
+
+.card:hover{
+transform:translateY(-10px);
+border:1px solid #38bdf8;
+box-shadow:0 0 25px rgba(56,189,248,0.35);
+}
+
+.card h3{
+margin-bottom:10px;
+color:#38bdf8;
+}
+
+.card p{
+color:#9ca3af;
+margin-bottom:15px;
+}
+
+.card button{
+padding:10px 20px;
+border:none;
+border-radius:20px;
+background:linear-gradient(90deg,#38bdf8,#22c55e);
+color:black;
+font-weight:600;
+cursor:pointer;
+}
+
+.card button:hover{
+transform:scale(1.05);
+}
+
+.logout{
+margin-top:40px;
+background:red;
+padding:12px 28px;
+border:none;
+border-radius:25px;
+color:white;
+cursor:pointer;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Welcome, {{user}} 🚀</h1>
+
+<!-- ===== STATS ===== -->
+<div class="stats">
+
+<div class="stat">
+<h3>Total Score</h3>
+<h2>{{score}}</h2>
+</div>
+
+<div class="stat">
+<h3>Weak Topic</h3>
+<h2 style="color:#facc15">{{weak}}</h2>
+</div>
+
+<div class="stat">
+<h3>AI Rank</h3>
+<h2 style="color:#38bdf8">Rising Dev</h2>
+</div>
+
+</div>
+
+<!-- ===== MAIN FEATURES ===== -->
+<div class="grid">
+
+<div class="card">
+<h3>📚 Learning Mode</h3>
+<p>Ask doubts & learn with AI mentor</p>
+<button onclick="window.location.href='/chat'">Open</button>
+</div>
+
+<div class="card">
+<h3>🧠 Practice Mode</h3>
+<p>Solve coding problems with AI check</p>
+<button onclick="window.location.href='/practice_select'">Start</button>
+</div>
+
+<div class="card">
+<h3>🎤 Interview Mode</h3>
+<p>Simulate real interview rounds</p>
+<button onclick="window.location.href='/interview_select'">Enter</button>
+</div>
+
+<div class="card">
+<h3>🏆 Leaderboard</h3>
+<p>See global rankings & rating</p>
+<button onclick="window.location.href='/leaderboard'">View</button>
+</div>
+
+<div class="card">
+<h3>🛠 Admin Panel</h3>
+<p>Monitor all users & analytics</p>
+<button onclick="window.location.href='/admin'">Open</button>
+</div>
+
+<div class="card">
+<h3>🔥 Daily Challenge</h3>
+<p>Solve today's global challenge + streak bonus</p>
+<button onclick="window.location.href='/daily'">Start</button>
+</div>
+
+
+</div>
+
+<button class="logout" onclick="window.location.href='/logout'">Logout</button>
+
+</div>
+
+</body>
+</html>

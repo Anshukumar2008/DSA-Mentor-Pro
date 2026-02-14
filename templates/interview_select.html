@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Select Interview</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+<style>
+body{
+background:#020617;
+color:white;
+font-family:Poppins;
+text-align:center;
+padding-top:80px;
+}
+
+h1{
+font-family:Orbitron;
+font-size:40px;
+margin-bottom:40px;
+background:linear-gradient(90deg,#38bdf8,#22c55e,#9333ea);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+
+.grid{
+display:flex;
+justify-content:center;
+gap:30px;
+flex-wrap:wrap;
+margin-top:40px;
+}
+
+.card{
+background:rgba(255,255,255,0.05);
+padding:30px;
+border-radius:18px;
+width:220px;
+cursor:pointer;
+transition:.3s;
+border:1px solid rgba(255,255,255,0.1);
+}
+
+.card:hover{
+transform:scale(1.08);
+box-shadow:0 0 25px #38bdf8;
+}
+
+button{
+margin-top:15px;
+padding:10px 20px;
+border:none;
+border-radius:20px;
+background:linear-gradient(90deg,#38bdf8,#22c55e);
+cursor:pointer;
+font-weight:bold;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🎤 Select Company Interview</h1>
+
+<div class="grid">
+
+<div class="card" onclick="start('Google')">
+<h2>Google</h2>
+<button>Start</button>
+</div>
+
+<div class="card" onclick="start('Amazon')">
+<h2>Amazon</h2>
+<button>Start</button>
+</div>
+
+<div class="card" onclick="start('Microsoft')">
+<h2>Microsoft</h2>
+<button>Start</button>
+</div>
+
+<div class="card" onclick="start('Startup')">
+<h2>Startup</h2>
+<button>Start</button>
+</div>
+
+</div>
+
+<script>
+function start(company){
+fetch("/start_interview",{
+method:"POST",
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({company:company})
+}).then(()=>{
+window.location.href="/interview"
+})
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Select Practice</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+
+<h1>🧠 Practice Setup</h1>
+
+<label>Select Language:</label>
+<select id="lang" style="padding:10px;border-radius:8px;margin-top:10px;">
+<option value="python">Python</option>
+<option value="cpp">C++</option>
+<option value="java">Java</option>
+</select>
+
+<br><br>
+
+<h3>Select Difficulty</h3>
+
+<button onclick="go('easy')">Easy</button>
+<button onclick="go('medium')">Medium</button>
+<button onclick="go('hard')">Hard</button>
+
+<br><br>
+<button onclick="window.location.href='/dashboard'">⬅ Back</button>
+
+</div>
+
+<script>
+function go(level){
+    let lang = document.getElementById("lang").value;
+
+    fetch("/set_lang",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({lang:lang})
+    })
+    .then(()=> {
+        window.location.href="/practice/"+level;
+    });
+}
+</script>
+
+</body>
+</html>

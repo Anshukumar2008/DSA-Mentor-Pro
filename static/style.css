@@ -1,0 +1,165 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&display=swap');
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Poppins;
+}
+
+body{
+background:#020617;
+color:white;
+overflow-x:hidden;
+}
+
+/* ===== GLOBAL CONTAINER ===== */
+.container{
+width:90%;
+max-width:1200px;
+margin:auto;
+padding:40px 0;
+}
+
+/* ===== GLASS CARD SYSTEM ===== */
+.card{
+background:rgba(255,255,255,0.03);
+border:1px solid rgba(255,255,255,0.08);
+padding:25px;
+border-radius:18px;
+backdrop-filter:blur(12px);
+transition:.3s;
+box-shadow:0 0 15px rgba(0,0,0,0.4);
+}
+
+.card:hover{
+transform:translateY(-8px);
+border:1px solid #38bdf8;
+box-shadow:0 0 25px rgba(56,189,248,0.35);
+}
+
+/* ===== BUTTONS ===== */
+button{
+padding:10px 22px;
+border:none;
+border-radius:22px;
+background:linear-gradient(90deg,#38bdf8,#22c55e);
+color:black;
+font-weight:600;
+cursor:pointer;
+transition:.2s;
+}
+
+button:hover{
+transform:scale(1.05);
+box-shadow:0 0 15px #38bdf8;
+}
+
+/* ===== INPUT FIELDS ===== */
+input, textarea, select{
+width:100%;
+padding:12px;
+margin-top:10px;
+background:#020617;
+border:1px solid #334155;
+border-radius:10px;
+color:white;
+outline:none;
+}
+
+input:focus, textarea:focus{
+border:1px solid #38bdf8;
+box-shadow:0 0 10px #38bdf8;
+}
+
+/* ===== TABLE UI ===== */
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:20px;
+background:rgba(255,255,255,0.02);
+border-radius:12px;
+overflow:hidden;
+}
+
+th, td{
+padding:14px;
+text-align:center;
+}
+
+th{
+background:#0f172a;
+color:#38bdf8;
+font-weight:600;
+}
+
+tr:nth-child(even){
+background:rgba(255,255,255,0.02);
+}
+
+tr:hover{
+background:rgba(56,189,248,0.08);
+}
+
+/* ===== HEADINGS ===== */
+h1, h2, h3{
+font-family:Orbitron;
+letter-spacing:1px;
+}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{
+width:8px;
+}
+::-webkit-scrollbar-thumb{
+background:#38bdf8;
+border-radius:10px;
+}
+::-webkit-scrollbar-track{
+background:#020617;
+}
+
+/* ===== NEON TEXT ===== */
+.neon{
+color:#38bdf8;
+text-shadow:0 0 8px #38bdf8;
+}
+
+/* ===== FLOAT ANIMATION ===== */
+.float{
+animation:float 3s ease-in-out infinite;
+}
+
+@keyframes float{
+0%{transform:translateY(0px);}
+50%{transform:translateY(-8px);}
+100%{transform:translateY(0px);}
+}
+
+/* ===== GLOW BORDER ===== */
+.glow{
+box-shadow:0 0 15px rgba(56,189,248,0.5);
+border:1px solid #38bdf8;
+}
+
+/* ===== FOOTER ===== */
+footer{
+text-align:center;
+padding:25px;
+color:gray;
+margin-top:50px;
+}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:768px){
+.container{
+width:95%;
+}
+.card{
+padding:18px;
+}
+h1{
+font-size:26px;
+}
+}

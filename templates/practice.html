@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Practice Mode</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+
+<h1>💻 AI Practice Mode</h1>
+
+<h2 id="questionBox" style="color:#38bdf8">Loading question...</h2>
+
+<textarea id="code" rows="12"
+style="width:100%;padding:15px;border-radius:10px;background:#020617;color:white;border:1px solid #334155;">
+</textarea>
+
+<br><br>
+<button onclick="submitAnswer()">Submit Answer</button>
+<button onclick="window.location.href='/dashboard'">⬅ Back</button>
+
+<div id="resultBox" style="margin-top:20px"></div>
+
+</div>
+
+<script>
+
+let currentQuestion = "";
+
+// -------- LOAD QUESTION --------
+function loadQuestion(){
+    fetch("/get_question")
+    .then(res=>res.json())
+    .then(data=>{
+        currentQuestion = data.question;   // ⭐ SAVE QUESTION
+        document.getElementById("questionBox").innerHTML = data.question;
+    });
+}
+
+// -------- SUBMIT ANSWER --------
+function submitAnswer(){
+
+    let code = document.getElementById("code").value;
+
+    fetch("/check_answer",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            answer:code,
+            question:currentQuestion   // ⭐ SEND QUESTION ALSO
+        })
+    })
+    .then(res=>res.json())
+    .then(data=>{
+
+        let formatted = data.feedback.replace(/\n/g,"<br>");
+
+        document.getElementById("resultBox").innerHTML = `
+        <div style="background:#000814;padding:15px;border-radius:12px;margin-top:20px;">
+        
+        <b style="color:#38bdf8;font-size:18px">AI Feedback:</b>
+
+        <p style="line-height:1.7;font-size:16px;margin-top:10px">
+        ${formatted}
+        </p>
+
+        <b style="color:#22c55e;font-size:20px">
+        Score: ${data.score}/10
+        </b>
+
+        <br><br>
+        <button onclick="nextQuestion()" 
+        style="background:#22c55e;padding:10px 20px;border:none;border-radius:8px;font-size:16px">
+        Next Question →
+        </button>
+
+        </div>
+        `;
+    })
+}
+
+// -------- NEXT QUESTION --------
+function nextQuestion(){
+    document.getElementById("code").value="";
+    document.getElementById("resultBox").innerHTML="";
+    loadQuestion();
+}
+
+// first load
+loadQuestion();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Daily Challenge</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+
+<h1>🔥 Daily Coding Challenge</h1>
+
+<h3>Current Streak: {{streak}} days</h3>
+
+{% if msg %}
+<h2>{{msg}}</h2>
+<button onclick="window.location.href='/dashboard'">Back</button>
+{% else %}
+
+<div class="card">
+<h3>{{question}}</h3>
+</div>
+
+<textarea id="ans" rows="10"></textarea>
+<br><br>
+<button onclick="submitDaily()">Submit</button>
+
+<div id="result"></div>
+
+{% endif %}
+
+</div>
+
+<script>
+function submitDaily(){
+fetch("/submit_daily",{method:"POST"})
+.then(r=>r.json())
+.then(d=>{
+document.getElementById("result").innerHTML=
+"<h2>"+d.reply+"</h2><h3>Streak: "+d.streak+" 🔥</h3>";
+});
+}
+</script>
+
+</body>
+</html>

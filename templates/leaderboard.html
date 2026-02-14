@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Leaderboard - DSA Mentor Pro</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Poppins}
+body{
+background:#020617;
+color:white;
+overflow-x:hidden;
+}
+
+/* animated bg */
+body::before{
+content:"";
+position:fixed;
+width:200%;
+height:200%;
+background:
+radial-gradient(circle at 20% 30%,#0ea5e9,transparent),
+radial-gradient(circle at 80% 70%,#22c55e,transparent),
+radial-gradient(circle at 50% 50%,#9333ea,transparent);
+opacity:0.18;
+animation:moveBg 15s linear infinite;
+z-index:-1;
+}
+@keyframes moveBg{
+0%{transform:translate(0,0);}
+50%{transform:translate(-10%,-10%);}
+100%{transform:translate(0,0);}
+}
+
+.container{
+width:90%;
+max-width:1100px;
+margin:auto;
+padding:40px 0;
+text-align:center;
+}
+
+h1{
+font-family:Orbitron;
+font-size:40px;
+margin-bottom:40px;
+background:linear-gradient(90deg,#38bdf8,#22c55e,#9333ea);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+
+/* ===== PODIUM ===== */
+.podium{
+display:flex;
+justify-content:center;
+align-items:flex-end;
+gap:30px;
+margin-bottom:50px;
+flex-wrap:wrap;
+}
+
+.topcard{
+padding:25px;
+border-radius:18px;
+min-width:180px;
+backdrop-filter:blur(10px);
+border:1px solid rgba(255,255,255,0.1);
+}
+
+.first{
+background:linear-gradient(180deg,gold,#b8860b);
+color:black;
+transform:scale(1.1);
+box-shadow:0 0 25px gold;
+}
+
+.second{
+background:linear-gradient(180deg,#c0c0c0,#808080);
+color:black;
+}
+
+.third{
+background:linear-gradient(180deg,#cd7f32,#8b4513);
+color:black;
+}
+
+/* ===== TABLE ===== */
+table{
+width:100%;
+border-collapse:collapse;
+margin-top:20px;
+background:rgba(255,255,255,0.03);
+border-radius:15px;
+overflow:hidden;
+}
+
+th,td{
+padding:14px;
+text-align:center;
+}
+
+th{
+background:#0f172a;
+color:#38bdf8;
+font-family:Orbitron;
+}
+
+tr:nth-child(even){
+background:rgba(255,255,255,0.02);
+}
+
+tr:hover{
+background:rgba(56,189,248,0.1);
+}
+
+.rating{
+color:#22c55e;
+font-weight:bold;
+}
+
+/* button */
+button{
+margin-top:30px;
+padding:12px 28px;
+border:none;
+border-radius:25px;
+background:linear-gradient(90deg,#38bdf8,#22c55e);
+color:black;
+font-weight:600;
+cursor:pointer;
+}
+button:hover{transform:scale(1.05)}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🏆 Global Leaderboard</h1>
+
+<!-- ===== TOP 3 PODIUM ===== -->
+<div class="podium">
+
+{% if users|length > 1 %}
+<div class="topcard second">
+<h2>🥈 2nd</h2>
+<h3>{{users[1].name}}</h3>
+<p>Rating: {{users[1].rating}}</p>
+</div>
+{% endif %}
+
+{% if users|length > 0 %}
+<div class="topcard first">
+<h2>🥇 1st</h2>
+<h3>{{users[0].name}}</h3>
+<p>Rating: {{users[0].rating}}</p>
+</div>
+{% endif %}
+
+{% if users|length > 2 %}
+<div class="topcard third">
+<h2>🥉 3rd</h2>
+<h3>{{users[2].name}}</h3>
+<p>Rating: {{users[2].rating}}</p>
+</div>
+{% endif %}
+
+</div>
+
+<!-- ===== FULL TABLE ===== -->
+<table>
+<tr>
+<th>Rank</th>
+<th>Name</th>
+<th>Score</th>
+<th>XP</th>
+<th>Rating</th>
+</tr>
+
+{% for u in users %}
+<tr>
+<td>#{{u.rank}}</td>
+<td>{{u.name}}</td>
+<td>{{u.score}}</td>
+<td>{{u.xp}}</td>
+<td class="rating">{{u.rating}}</td>
+</tr>
+{% endfor %}
+</table>
+
+<button onclick="window.location.href='/dashboard'">← Back Dashboard</button>
+
+</div>
+</body>
+</html>
