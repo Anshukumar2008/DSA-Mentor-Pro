@@ -508,35 +508,35 @@ Excellent → 9-10
 # -------- ADMIN PANEL --------
 @app.route("/admin")
 def admin():
-    conn = get_db()
-    users = conn.execute("SELECT * FROM users ORDER BY score DESC").fetchall()
 
-    total_users = len(users)
-    total_score = sum([u["score"] for u in users])
-    total_xp = sum([u["xp"] for u in users])
+    # login check
+    if "user" not in session:
+        return redirect("/login")
+
+    # ONLY YOU CAN OPEN ADMIN
+    if session["user"] != "anshuraj02092006@gmail.com":
+        return redirect("/dashboard")   # admin exist bhi nahi dikhega
+
+    conn=get_db()
+    users=conn.execute("SELECT * FROM users ORDER BY score DESC").fetchall()
+
+    total_users=len(users)
+    total_score=sum([u["score"] for u in users])
+    total_xp=sum([u["xp"] for u in users])
 
     conn.close()
 
-    return render_template(
-        "admin.html",
-        users=users,
-        total_users=total_users,
-        total_score=total_score,
-        total_xp=total_xp
-    )
+    return render_template("admin.html",
+                           users=users,
+                           total_users=total_users,
+                           total_score=total_score,
+                           total_xp=total_xp)
 
-
-@app.route("/delete_user/<int:id>")
-def delete_user(id):
-    conn = get_db()
-    conn.execute("DELETE FROM users WHERE id=?", (id,))
-    conn.commit()
-    conn.close()
-    return redirect("/admin")
 
 
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
