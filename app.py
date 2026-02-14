@@ -90,6 +90,13 @@ def login():
 
     return render_template("login.html")
 
+# ---------------- LOGOUT ----------------
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
+
+
 # ---------------- DASHBOARD ----------------
 @app.route("/dashboard")
 def dashboard():
@@ -532,3 +539,4 @@ def delete_user(id):
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
