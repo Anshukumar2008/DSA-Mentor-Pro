@@ -6,12 +6,12 @@ from datetime import date
 import os
 
 
+ELEVEN_API_KEY = os.getenv("ELEVEN_API_KEY")
 
 
 # 🔑 PASTE YOUR NEW KEY HERE
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-ELEVEN_API_KEY = "sk_1e899bde0e1fae75ebb62bb91c8f185c163f8854b84847ec"
 
 
 app = Flask(__name__)
@@ -538,5 +538,6 @@ def admin():
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
