@@ -607,11 +607,12 @@ def admin():
     if "user" not in session:
         return redirect("/login")
 
+    # Only you can access admin
     if session["user"] != "anshuraj02092006@gmail.com":
         return redirect("/dashboard")
 
     conn = get_db()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     cur.execute(
         "SELECT name, email, score, xp FROM users ORDER BY score DESC"
@@ -620,8 +621,8 @@ def admin():
     users = cur.fetchall()
 
     total_users = len(users)
-    total_score = sum(u[2] for u in users)
-    total_xp = sum(u[3] for u in users)
+    total_score = sum(u["score"] for u in users)
+    total_xp = sum(u["xp"] for u in users)
 
     cur.close()
     conn.close()
@@ -635,9 +636,11 @@ def admin():
     )
 
 
+
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
