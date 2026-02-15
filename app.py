@@ -32,13 +32,15 @@ def get_db():
         host=result.hostname,
         port=result.port
     )
+
     return conn
+
 
 
 def init_db():
     conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-    
+    cur = conn.cursor()
+
     cur.execute("""
     CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -58,11 +60,7 @@ def init_db():
     cur.close()
     conn.close()
 
-if __name__ == "__main__":
-    init_db()
-    app.run()
-
-
+init_db() 
 
 # ---------------- HOME ----------------
 @app.route("/")
@@ -70,7 +68,7 @@ def home():
     return render_template("about.html")
 
 # ---------------- SIGNUP ----------------
-@app.route("/signup", methods=["GET","POST"])
+@app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
         name = request.form["name"]
@@ -79,35 +77,54 @@ def signup():
 
         try:
             conn = get_db()
-            conn.execute("INSERT INTO users(name,email,password) VALUES(?,?,?)",
-                         (name,email,password))
+            cur = conn.cursor()
+
+            cur.execute(
+                "INSERT INTO users(name,email,password) VALUES(%s,%s,%s)",
+                (name, email, password)
+            )
+
             conn.commit()
+            cur.close()
             conn.close()
+
             return redirect("/login")
+
         except:
             return "User already exists"
 
     return render_template("signup.html")
 
+
 # ---------------- LOGIN ----------------
-@app.route("/login", methods=["GET","POST"])
+@app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         email = request.form["email"]
         password = request.form["password"]
 
         conn = get_db()
-        user = conn.execute("SELECT * FROM users WHERE email=? AND password=?",
-                            (email,password)).fetchone()
+        cur = conn.cursor()
+
+        cur.execute(
+            "SELECT email FROM users WHERE email=%s AND password=%s",
+            (email, password)
+        )
+
+        user = cur.fetchone()
+
+        cur.close()
         conn.close()
 
         if user:
-            session["user"] = user["email"]
+            session["user"] = user[0]
             return redirect("/dashboard")
         else:
             return "Invalid login"
 
     return render_template("login.html")
+
+
 
 # ---------------- LOGOUT ----------------
 @app.route("/logout")
@@ -123,14 +140,24 @@ def dashboard():
         return redirect("/login")
 
     conn = get_db()
-    user = conn.execute("SELECT * FROM users WHERE email=?",
-                        (session["user"],)).fetchone()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT name, score, weak FROM users WHERE email=%s",
+        (session["user"],)
+    )
+
+    user = cur.fetchone()
+
+    cur.close()
     conn.close()
 
-    return render_template("dashboard.html",
-                           user=user["name"],
-                           score=user["score"],
-                           weak=user["weak"])
+    return render_template(
+        "dashboard.html",
+        user=user[0],
+        score=user[1],
+        weak=user[2]
+    )
 
 # ---------------- CHAT AI ----------------
 @app.route("/chat")
@@ -212,6 +239,7 @@ def get_question():
 
 
 # ---------- SMART PRACTICE CHECK ----------
+
 @app.route("/check_answer", methods=["POST"])
 def check_answer():
 
@@ -270,11 +298,15 @@ Feedback:
         xp_gain = score * 3
 
         conn = get_db()
-        conn.execute(
-            "UPDATE users SET score=score+?, xp=xp+?, weak=? WHERE email=?",
+        cur = conn.cursor()
+
+        cur.execute(
+            "UPDATE users SET score=score+%s, xp=xp+%s, weak=%s WHERE email=%s",
             (score, xp_gain, weak, session["user"])
         )
+
         conn.commit()
+        cur.close()
         conn.close()
 
     except:
@@ -306,45 +338,70 @@ def daily():
     if "user" not in session:
         return redirect("/login")
 
-    today=str(date.today())
-    conn=get_db()
-    user=conn.execute("SELECT * FROM users WHERE email=?",
-                      (session["user"],)).fetchone()
+    today = str(date.today())
 
-    if user["last_daily"]==today:
-        msg="You already solved today's challenge 🔥"
-        q=None
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        "SELECT * FROM users WHERE email=%s",
+        (session["user"],)
+    )
+
+    user = cur.fetchone()
+
+    if user["last_daily"] == today:
+        msg = "You already solved today's challenge 🔥"
+        q = None
     else:
-        q=generate_daily_question()
-        msg=None
+        q = generate_daily_question()
+        msg = None
 
+    cur.close()
     conn.close()
-    return render_template("daily.html",question=q,msg=msg,streak=user["streak"])
+
+    return render_template("daily.html", question=q, msg=msg, streak=user["streak"])
+
 
 @app.route("/submit_daily",methods=["POST"])
 def submit_daily():
     if "user" not in session:
         return jsonify({"reply":"login first"})
 
-    today=str(date.today())
-    conn=get_db()
-    user=conn.execute("SELECT * FROM users WHERE email=?",
-                      (session["user"],)).fetchone()
+    today = str(date.today())
 
-    if user["last_daily"]==today:
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute(
+        "SELECT * FROM users WHERE email=%s",
+        (session["user"],)
+    )
+
+    user = cur.fetchone()
+
+    if user["last_daily"] == today:
+        cur.close()
+        conn.close()
         return jsonify({"reply":"Already completed today"})
 
-    new_streak=user["streak"]+1
-    bonus=20+(new_streak*5)
+    new_streak = user["streak"] + 1
+    bonus = 20 + (new_streak * 5)
 
-    conn.execute("""UPDATE users 
-    SET score=score+?, xp=xp+?, streak=?, last_daily=? 
-    WHERE email=?""",
-                 (bonus,bonus,new_streak,today,session["user"]))
+    cur.execute("""
+        UPDATE users
+        SET score=score+%s, xp=xp+%s, streak=%s, last_daily=%s
+        WHERE email=%s
+    """,
+        (bonus, bonus, new_streak, today, session["user"])
+    )
+
     conn.commit()
+    cur.close()
     conn.close()
 
     return jsonify({"reply":f"🔥 Daily completed! +{bonus} XP","streak":new_streak})
+
 
 
 # ---------- VOICE GENERATION ----------
@@ -379,21 +436,33 @@ def voice():
 
 
 # ---------------- LEADERBOARD ----------------
+
 @app.route("/leaderboard")
 def leaderboard():
-    conn=get_db()
-    users=conn.execute("SELECT name,score,xp FROM users ORDER BY score DESC").fetchall()
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    cur.execute("SELECT name, score, xp FROM users ORDER BY score DESC")
+    users = cur.fetchall()
+
+    cur.close()
     conn.close()
 
-    data=[]
-    rank=1
-    for u in users:
-        rating=800+(u["score"]*5)+(u["xp"]*2)
-        data.append({"rank":rank,"name":u["name"],
-                     "score":u["score"],"xp":u["xp"],"rating":rating})
-        rank+=1
+    data = []
+    rank = 1
 
-    return render_template("leaderboard.html",users=data)
+    for u in users:
+        rating = 800 + (u["score"] * 5) + (u["xp"] * 2)
+        data.append({
+            "rank": rank,
+            "name": u["name"],
+            "score": u["score"],
+            "xp": u["xp"],
+            "rating": rating
+        })
+        rank += 1
+
+    return render_template("leaderboard.html", users=data)
 
 
 @app.route("/interview_select")
@@ -512,10 +581,17 @@ Excellent → 9-10
             result = "REJECTED ❌"
 
         conn = get_db()
-        conn.execute("UPDATE users SET score=score+?, xp=xp+? WHERE email=?",
-                     (score,score,session["user"]))
+        cur = conn.cursor()
+
+        cur.execute(
+            "UPDATE users SET score=score+%s, xp=xp+%s WHERE email=%s",
+            (score, score, session["user"])
+        )
+
         conn.commit()
+        cur.close()
         conn.close()
+
 
         return jsonify({
             "reply": judge_reply + "\n\nInterview Finished.",
@@ -528,35 +604,41 @@ Excellent → 9-10
 @app.route("/admin")
 def admin():
 
-    # login check
     if "user" not in session:
         return redirect("/login")
 
-    # ONLY YOU CAN OPEN ADMIN
     if session["user"] != "anshuraj02092006@gmail.com":
-        return redirect("/dashboard")   # admin exist bhi nahi dikhega
+        return redirect("/dashboard")
 
-    conn=get_db()
-    users=conn.execute("SELECT * FROM users ORDER BY score DESC").fetchall()
+    conn = get_db()
+    cur = conn.cursor()
 
-    total_users=len(users)
-    total_score=sum([u["score"] for u in users])
-    total_xp=sum([u["xp"] for u in users])
+    cur.execute(
+        "SELECT name, email, score, xp FROM users ORDER BY score DESC"
+    )
 
+    users = cur.fetchall()
+
+    total_users = len(users)
+    total_score = sum(u[2] for u in users)
+    total_xp = sum(u[3] for u in users)
+
+    cur.close()
     conn.close()
 
-    return render_template("admin.html",
-                           users=users,
-                           total_users=total_users,
-                           total_score=total_score,
-                           total_xp=total_xp)
-
-
+    return render_template(
+        "admin.html",
+        users=users,
+        total_users=total_users,
+        total_score=total_score,
+        total_xp=total_xp
+    )
 
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
