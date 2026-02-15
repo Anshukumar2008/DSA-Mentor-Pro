@@ -1,9 +1,12 @@
 from flask import Flask, render_template, request, redirect, session, jsonify
-import sqlite3
 import random
 import requests
 from datetime import date
 import os
+import psycopg2
+import psycopg2.extras
+from urllib.parse import urlparse
+
 
 
 ELEVEN_API_KEY = os.getenv("ELEVEN_API_KEY")
@@ -19,31 +22,47 @@ app.secret_key = "dsa_secret"
 
 # ---------------- DATABASE ----------------
 def get_db():
-    conn = sqlite3.connect("database.db")
-    conn.row_factory = sqlite3.Row
+    database_url = os.environ.get("DATABASE_URL")
+    result = urlparse(database_url)
+
+    conn = psycopg2.connect(
+        database=result.path[1:],
+        user=result.username,
+        password=result.password,
+        host=result.hostname,
+        port=result.port
+    )
     return conn
+
 
 def init_db():
     conn = get_db()
-    cur = conn.cursor()
-
-    cur.execute("""CREATE TABLE IF NOT EXISTS users(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
         name TEXT,
         email TEXT UNIQUE,
         password TEXT,
         score INTEGER DEFAULT 0,
         xp INTEGER DEFAULT 0,
         level INTEGER DEFAULT 1,
-        weak TEXT DEFAULT 'None',
+        weak TEXT DEFAULT '',
         streak INTEGER DEFAULT 0,
         last_daily TEXT DEFAULT ''
-    )""")
+    );
+    """)
 
     conn.commit()
+    cur.close()
     conn.close()
 
-init_db()
+if __name__ == "__main__":
+    init_db()
+    app.run()
+
+
 
 # ---------------- HOME ----------------
 @app.route("/")
@@ -538,6 +557,7 @@ def admin():
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
