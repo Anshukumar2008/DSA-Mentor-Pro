@@ -635,11 +635,32 @@ def admin():
         total_xp=total_xp
     )
 
+@app.route("/delete_user/<int:user_id>")
+def delete_user(user_id):
+
+    if "user" not in session:
+        return redirect("/login")
+
+    if session["user"] != "anshuraj02092006@gmail.com":
+        return redirect("/dashboard")
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+    return redirect("/admin")
+
 
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
