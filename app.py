@@ -601,22 +601,24 @@ Excellent → 9-10
 
 
 # -------- ADMIN PANEL --------
+
 @app.route("/admin")
 def admin():
 
     if "user" not in session:
         return redirect("/login")
 
-    # Only you can access admin
     if session["user"] != "anshuraj02092006@gmail.com":
         return redirect("/dashboard")
 
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cur.execute(
-        "SELECT name, email, score, xp FROM users ORDER BY score DESC"
-    )
+    cur.execute("""
+        SELECT id, name, email, score, xp, weak
+        FROM users
+        ORDER BY score DESC
+    """)
 
     users = cur.fetchall()
 
@@ -634,6 +636,7 @@ def admin():
         total_score=total_score,
         total_xp=total_xp
     )
+
 
 @app.route("/delete_user/<int:user_id>")
 def delete_user(user_id):
@@ -660,6 +663,7 @@ def delete_user(user_id):
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
