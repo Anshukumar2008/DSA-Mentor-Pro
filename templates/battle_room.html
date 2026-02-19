@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Battle Mode</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+
+    <h1 class="neon">⚔ Battle Mode</h1>
+
+    <div class="card glow">
+        <h3 id="status">Waiting for opponent...</h3>
+        <p><b>Room:</b> {{room_id}}</p>
+        <p><b>Time Left:</b> <span id="timer">20:00</span></p>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+        <h3 style="color:#38bdf8;">📝 Problem</h3>
+        <p id="question">{{ question }}</p>
+    </div>
+
+    <div class="card" style="margin-top:20px;">
+        <h3 style="color:#22c55e;">💻 Your Code</h3>
+        <textarea id="code" rows="10"></textarea>
+        <br><br>
+        <button onclick="submitCode()">Submit</button>
+    </div>
+
+</div>
+
+<script>
+    let socket = io();
+    let room = "{{room_id}}";
+
+    socket.emit("join_room", {room: room});
+
+    function submitCode() {
+        let code = document.getElementById("code").value;
+        socket.emit("submit_code", {room: room, code: code});
+        document.getElementById("status").innerText =
+            "Submitted! Waiting for opponent...";
+    }
+
+    socket.on("timer_update", (data) => {
+        let seconds = data.time;
+        let minutes = Math.floor(seconds / 60);
+        let remainingSeconds = seconds % 60;
+
+        if (remainingSeconds < 10) {
+            remainingSeconds = "0" + remainingSeconds;
+        }
+
+        document.getElementById("timer").innerText =
+            minutes + ":" + remainingSeconds;
+    });
+
+    socket.on("opponent_submitted", () => {
+        document.getElementById("status").innerText =
+            "Opponent submitted!";
+    });
+
+    socket.on("battle_result", (data) => {
+
+       if (data.winner === null) {
+          alert("🤝 It's a Draw!");
+       } 
+       else if (data.winner === data.your_id) {
+          alert("🏆 You Win!");
+       } 
+       else {
+          alert("❌ You Lose!");
+       }
+
+    });
+
+</script>
+
+</body>
+</html>

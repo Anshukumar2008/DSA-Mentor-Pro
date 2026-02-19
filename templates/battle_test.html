@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Battle Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+
+<h2>Battle Mode Test</h2>
+
+<!-- 🔥 Language Selector Added -->
+<label>Select Language:</label>
+<select id="language">
+    <option value="python">Python</option>
+    <option value="java">Java</option>
+    <option value="cpp">C++</option>
+</select>
+
+<br><br>
+
+<button onclick="joinBattle()">Join Battle</button>
+
+<script>
+    let socket = io();
+
+    function joinBattle() {
+
+        // 🔥 Get selected language
+        let selectedLanguage = document.getElementById("language").value;
+
+        socket.emit("join_battle", {
+            user: "test_user",
+            language: selectedLanguage
+        });
+    }
+
+    socket.on("waiting", () => {
+        alert("Waiting for opponent...");
+    });
+
+    socket.on("battle_start", (data) => {
+       window.location.href = "/battle_room/" + data.room;
+    });
+
+</script>
+
+</body>
+</html>
