@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, render_template, request, redirect, session, jsonify
 import random
 import requests
@@ -9,9 +12,9 @@ import os
 import psycopg2
 import psycopg2.extras
 from urllib.parse import urlparse
-from flask_socketio import SocketIO
-from flask_socketio import emit, join_room
+from flask_socketio import SocketIO, emit, join_room
 import uuid
+
 
 waiting_player = None
 battle_rooms = {}
@@ -29,7 +32,8 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 app = Flask(__name__)
 app.secret_key = "dsa_secret"
 
-socketio = SocketIO(app)
+socketio = SocketIO(app, async_mode="eventlet", cors_allowed_origins="*")
+
 
 
 # ---------------- DATABASE ----------------
@@ -103,11 +107,11 @@ def init_db():
 init_db()
 
 
-
 # ---------------- HOME ----------------
 @app.route("/")
 def home():
     return render_template("about.html")
+
 
 # ---------------- SIGNUP ----------------
 @app.route("/signup", methods=["GET", "POST"])
@@ -127,13 +131,20 @@ def signup():
             )
 
             conn.commit()
+
+        except psycopg2.errors.UniqueViolation:
+            conn.rollback()
+            return "User already exists"
+
+        except Exception as e:
+            print("Signup error:", e)
+            return "Signup failed"
+
+        finally:
             cur.close()
             conn.close()
 
-            return redirect("/login")
-
-        except:
-            return "User already exists"
+        return redirect("/login")
 
     return render_template("signup.html")
 
@@ -145,18 +156,24 @@ def login():
         email = request.form["email"]
         password = request.form["password"]
 
-        conn = get_db()
-        cur = conn.cursor()
+        try:
+            conn = get_db()
+            cur = conn.cursor()
 
-        cur.execute(
-            "SELECT email FROM users WHERE email=%s AND password=%s",
-            (email, password)
-        )
+            cur.execute(
+                "SELECT email FROM users WHERE email=%s AND password=%s",
+                (email, password)
+            )
 
-        user = cur.fetchone()
+            user = cur.fetchone()
 
-        cur.close()
-        conn.close()
+        except Exception as e:
+            print("Login error:", e)
+            return "Login failed"
+
+        finally:
+            cur.close()
+            conn.close()
 
         if user:
             session["user"] = user[0]
@@ -175,6 +192,7 @@ def logout():
     return redirect("/login")
 
 
+
 # ---------------- DASHBOARD ----------------
 @app.route("/dashboard")
 def dashboard():
@@ -182,51 +200,61 @@ def dashboard():
     if "user" not in session:
         return redirect("/login")
 
-    conn = get_db()
-    cur = conn.cursor()
-
     email = session["user"]
 
-    # 🔹 Get name, score, weak
-    cur.execute("""
-        SELECT name, score, weak
-        FROM users
-        WHERE email=%s
-    """, (email,))
+    try:
+        conn = get_db()
+        cur = conn.cursor()
 
-    user_data = cur.fetchone()
+        # 🔹 Get name, score, weak
+        cur.execute("""
+            SELECT name, score, weak
+            FROM users
+            WHERE email=%s
+        """, (email,))
 
-    if user_data:
-        name = user_data[0]
-        score = user_data[1]
-        weak = user_data[2]
-    else:
+        user_data = cur.fetchone()
+
+        if user_data:
+            name = user_data[0]
+            score = user_data[1]
+            weak = user_data[2]
+        else:
+            name = "User"
+            score = 0
+            weak = "None"
+
+        # 🔹 Readiness formula
+        readiness = min(100, int(score * 0.5))
+
+        # 🔹 Most weak topic
+        cur.execute("""
+            SELECT topic, COUNT(*) 
+            FROM weak_topics
+            WHERE email=%s
+            GROUP BY topic
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+        """, (email,))
+
+        row = cur.fetchone()
+        recommended_topic = row[0] if row else None
+
+    except Exception as e:
+        print("Dashboard error:", e)
         name = "User"
         score = 0
         weak = "None"
+        readiness = 0
+        recommended_topic = None
 
-    # 🔹 Readiness (simple stable formula)
-    readiness = min(100, int(score * 0.5))
-
-    # 🔹 Most weak topic
-    cur.execute("""
-        SELECT topic, COUNT(*) 
-        FROM weak_topics
-        WHERE email=%s
-        GROUP BY topic
-        ORDER BY COUNT(*) DESC
-        LIMIT 1
-    """, (email,))
-
-    row = cur.fetchone()
-    recommended_topic = row[0] if row else None
-
-    cur.close()
-    conn.close()
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template(
         "dashboard.html",
-        user=name,   # ✅ now NAME not email
+        user=name,
         score=score,
         weak=weak,
         readiness=readiness,
@@ -242,71 +270,82 @@ def weak_topics_page():
     if "user" not in session:
         return redirect("/login")
 
-    conn = get_db()
-    cur = conn.cursor()
-
     email = session["user"]
 
-    # 1️⃣ Get weak topic counts
-    cur.execute("""
-        SELECT topic, COUNT(*) 
-        FROM weak_topics
-        WHERE email=%s
-        GROUP BY topic
-        ORDER BY COUNT(*) DESC
-    """, (email,))
+    try:
+        conn = get_db()
+        cur = conn.cursor()
 
-    rows = cur.fetchall()
-    max_count = max([row[1] for row in rows]) if rows else 1
-
-    topics = []
-
-    for row in rows:
-        topic = row[0]
-        count = row[1]
-
-        # 2️⃣ Get real average score from topic_performance
+        # 1️⃣ Get weak topic counts
         cur.execute("""
-            SELECT AVG(score)
-            FROM topic_performance
-            WHERE email=%s AND topic=%s
-        """, (email, topic))
+            SELECT topic, COUNT(*) 
+            FROM weak_topics
+            WHERE email=%s
+            GROUP BY topic
+            ORDER BY COUNT(*) DESC
+        """, (email,))
 
-        avg_score = cur.fetchone()[0]
+        rows = cur.fetchall()
+        max_count = max([row[1] for row in rows]) if rows else 1
 
-        if avg_score is None:
-            avg_score = 0
+        topics = []
 
-        improvement = int(avg_score * 10)  # Convert average (0–10) to percentage
+        for topic, count in rows:
 
-        # 3️⃣ Mastery logic based on real improvement
-        if improvement <= 40:
-            mastery = "Beginner"
-        elif improvement <= 70:
-            mastery = "Intermediate"
-        else:
-            mastery = "Strong"
+            # 2️⃣ Get real average score safely
+            try:
+                cur.execute("""
+                    SELECT AVG(score)
+                    FROM topic_performance
+                    WHERE email=%s AND topic=%s
+                """, (email, topic))
 
-        percentage = int((count / max_count) * 100)
+                avg_score = cur.fetchone()[0]
 
-        topics.append({
-            "topic": topic,
-            "count": count,
-            "improvement": improvement,
-            "mastery": mastery,
-            "percentage": percentage
-        })
+            except Exception as e:
+                print("Topic performance error:", e)
+                avg_score = 0
 
-    cur.close()
-    conn.close()
+            if avg_score is None:
+                avg_score = 0
 
-    most_weak = topics[0] if topics else None
+            improvement = int(avg_score * 10)  # Convert 0–10 to %
+
+            # 3️⃣ Mastery logic
+            if improvement <= 40:
+                mastery = "Beginner"
+            elif improvement <= 70:
+                mastery = "Intermediate"
+            else:
+                mastery = "Strong"
+
+            percentage = int((count / max_count) * 100)
+
+            topics.append({
+                "topic": topic,
+                "count": count,
+                "improvement": improvement,
+                "mastery": mastery,
+                "percentage": percentage
+            })
+
+        most_weak = topics[0] if topics else None
+
+    except Exception as e:
+        print("Weak topics error:", e)
+        topics = []
+        most_weak = None
+
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template(
         "weak_topics.html",
         topics=topics,
         most_weak=most_weak
     )
+
 
 
 # ---------------- TOPIC PLAN ----------------
@@ -316,24 +355,30 @@ def topic_plan(topic):
     if "user" not in session:
         return redirect("/login")
 
-    conn = get_db()
-    cur = conn.cursor()
-
     email = session["user"]
 
-    cur.execute("""
-        SELECT score
-        FROM topic_performance
-        WHERE email=%s AND topic=%s
-        ORDER BY created_at DESC
-        LIMIT 10
-    """, (email, topic))
+    try:
+        conn = get_db()
+        cur = conn.cursor()
 
-    score_rows = cur.fetchall()
-    scores = [row[0] for row in score_rows][::-1]
+        cur.execute("""
+            SELECT score
+            FROM topic_performance
+            WHERE email=%s AND topic=%s
+            ORDER BY created_at DESC
+            LIMIT 10
+        """, (email, topic))
 
-    cur.close()
-    conn.close()
+        score_rows = cur.fetchall()
+        scores = [row[0] for row in score_rows][::-1]
+
+    except Exception as e:
+        print("Topic Plan DB error:", e)
+        scores = []
+
+    finally:
+        cur.close()
+        conn.close()
 
     # ---------- ANALYTICS LOGIC ----------
 
@@ -350,8 +395,9 @@ def topic_plan(topic):
         else:
             trend = "Insufficient Data"
 
-        consistency = round((sum(1 for s in scores if s >= 7) / len(scores)) * 100)
-
+        consistency = round(
+            (sum(1 for s in scores if s >= 7) / len(scores)) * 100
+        )
     else:
         avg_score = 0
         trend = "No Data"
@@ -386,9 +432,15 @@ Generate:
         )
 
         data = response.json()
-        reply = data["choices"][0]["message"]["content"]
 
-    except:
+        if "choices" in data and len(data["choices"]) > 0:
+            reply = data["choices"][0]["message"]["content"]
+        else:
+            print("OpenRouter error:", data)
+            reply = "AI service returned unexpected response."
+
+    except Exception as e:
+        print("AI error:", e)
         reply = "AI service temporarily unavailable."
 
     return render_template(
@@ -422,11 +474,13 @@ def focus_practice(topic):
     return redirect("/practice/focus")
 
 
-
 # ---------------- PRACTICE SELECT ----------------
 @app.route("/practice_select")
 def practice_select():
+    if "user" not in session:
+        return redirect("/login")
     return render_template("practice_select.html")
+
 
 @app.route("/practice/<level>")
 def practice_level(level):
@@ -435,26 +489,34 @@ def practice_level(level):
         return redirect("/login")
 
     if level == "focus":
-        session["level"] = "medium"   # focus mode default difficulty
+        session["level"] = "medium"
     else:
         session["level"] = level
-        session.pop("focus_topic", None)  # remove focus mode if normal
+        session.pop("focus_topic", None)
 
     return render_template("practice.html")
 
 
 @app.route("/set_lang", methods=["POST"])
 def set_lang():
+    if "user" not in session:
+        return jsonify({"error": "Login required"}), 401
+
     data = request.json
-    session["lang"] = data["lang"]
-    return jsonify({"ok":True})
+    session["lang"] = data.get("lang", "python")
+    return jsonify({"ok": True})
+
+
 
 # ---------------- GET AI QUESTION ----------------
 @app.route("/get_question")
 def get_question():
 
-    level = session.get("level","easy")
-    lang = session.get("lang","python")
+    if "user" not in session:
+        return jsonify({"question": "Login required"}), 401
+
+    level = session.get("level", "easy")
+    lang = session.get("lang", "python")
 
     diff = "EASY" if level=="easy" else "MEDIUM" if level=="medium" else "HARD"
     language = "Python" if lang=="python" else "C++" if lang=="cpp" else "Java"
@@ -464,17 +526,31 @@ def get_question():
     try:
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                     "Content-Type": "application/json"},
-            json={"model":"openai/gpt-3.5-turbo",
-                  "messages":[{"role":"user","content":prompt}]}
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model":"openai/gpt-3.5-turbo",
+                "messages":[{"role":"user","content":prompt}]
+            },
+            timeout=30
         )
+
         data = response.json()
-        question = data["choices"][0]["message"]["content"]
-    except:
+
+        if "choices" in data and len(data["choices"]) > 0:
+            question = data["choices"][0]["message"]["content"]
+        else:
+            print("OpenRouter error:", data)
+            question = "AI service returned unexpected response."
+
+    except Exception as e:
+        print("Question generation error:", e)
         question = "Error generating question"
 
     return jsonify({"question": question})
+
 
 
 
@@ -529,6 +605,7 @@ Feedback:
 """
 
     try:
+        # 🔹 AI Evaluation
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers={
@@ -543,19 +620,18 @@ Feedback:
         )
 
         data = response.json()
-        reply = data["choices"][0]["message"]["content"]
 
-        import re
+        if "choices" in data and len(data["choices"]) > 0:
+            reply = data["choices"][0]["message"]["content"]
+        else:
+            print("AI response error:", data)
+            return jsonify({"feedback": "AI service error", "score": 0})
 
         score_match = re.search(r'(\d+)/10', reply)
         score = int(score_match.group(1)) if score_match else 5
 
         weak_match = re.search(r'Weak Topic:\s*(.*)', reply)
-
-        if weak_match:
-            weak = weak_match.group(1).strip()
-        else:
-            weak = "General DSA"
+        weak = weak_match.group(1).strip() if weak_match else "General DSA"
 
         allowed_topics = [
             "Syntax",
@@ -571,47 +647,50 @@ Feedback:
 
         xp_gain = score * 3
 
-        conn = get_db()
-        cur = conn.cursor()
+        # 🔹 DB Updates
+        try:
+            conn = get_db()
+            cur = conn.cursor()
 
-        # 1️⃣ Update user score/xp + latest weak
-        cur.execute(
-            "UPDATE users SET score=score+%s, xp=xp+%s, weak=%s WHERE email=%s",
-            (score, xp_gain, weak, session["user"])
-        )
-
-        # 2️⃣ Store performance history (VERY IMPORTANT)
-        cur.execute(
-            "INSERT INTO topic_performance (email, topic, score) VALUES (%s, %s, %s)",
-            (session["user"], weak, score)
-        )
-
-        # 3️⃣ Recovery system
-        if score >= 8:
-            cur.execute("""
-                DELETE FROM weak_topics
-                WHERE id = (
-                    SELECT id FROM weak_topics
-                    WHERE email=%s AND topic=%s
-                    LIMIT 1
-                )
-            """, (session["user"], weak))
-        else:
             cur.execute(
-                "INSERT INTO weak_topics (email, topic) VALUES (%s, %s)",
-                (session["user"], weak)
+                "UPDATE users SET score=score+%s, xp=xp+%s, weak=%s WHERE email=%s",
+                (score, xp_gain, weak, session["user"])
             )
 
-        conn.commit()
-        cur.close()
-        conn.close()
+            cur.execute(
+                "INSERT INTO topic_performance (email, topic, score) VALUES (%s, %s, %s)",
+                (session["user"], weak, score)
+            )
+
+            if score >= 8:
+                cur.execute("""
+                    DELETE FROM weak_topics
+                    WHERE id = (
+                        SELECT id FROM weak_topics
+                        WHERE email=%s AND topic=%s
+                        LIMIT 1
+                    )
+                """, (session["user"], weak))
+            else:
+                cur.execute(
+                    "INSERT INTO weak_topics (email, topic) VALUES (%s, %s)",
+                    (session["user"], weak)
+                )
+
+            conn.commit()
+
+        except Exception as db_error:
+            print("DB update error:", db_error)
+        finally:
+            cur.close()
+            conn.close()
 
     except Exception as e:
         print("AI Error:", e)
-        reply = "AI evaluation error"
-        score = 0
+        return jsonify({"feedback": "AI evaluation error", "score": 0})
 
     return jsonify({"feedback": reply, "score": score})
+
 
 
 
@@ -621,15 +700,29 @@ def generate_daily_question():
     try:
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
-            headers={"Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                     "Content-Type":"application/json"},
-            json={"model":"openai/gpt-3.5-turbo",
-                  "messages":[{"role":"user","content":prompt}]}
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model":"openai/gpt-3.5-turbo",
+                "messages":[{"role":"user","content":prompt}]
+            },
+            timeout=30
         )
+
         data = response.json()
-        return data["choices"][0]["message"]["content"]
-    except:
+
+        if "choices" in data and len(data["choices"]) > 0:
+            return data["choices"][0]["message"]["content"]
+        else:
+            print("Daily AI error:", data)
+            return "Explain binary search."
+
+    except Exception as e:
+        print("Daily question error:", e)
         return "Explain binary search."
+
 
 @app.route("/daily")
 def daily():
@@ -638,67 +731,90 @@ def daily():
 
     today = str(date.today())
 
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cur.execute(
-        "SELECT * FROM users WHERE email=%s",
-        (session["user"],)
+        cur.execute(
+            "SELECT * FROM users WHERE email=%s",
+            (session["user"],)
+        )
+
+        user = cur.fetchone()
+
+        if user["last_daily"] == today:
+            msg = "You already solved today's challenge 🔥"
+            q = None
+        else:
+            q = generate_daily_question()
+            msg = None
+
+    except Exception as e:
+        print("Daily route error:", e)
+        msg = "Error loading daily challenge."
+        q = None
+        user = {"streak": 0}
+
+    finally:
+        cur.close()
+        conn.close()
+
+    return render_template(
+        "daily.html",
+        question=q,
+        msg=msg,
+        streak=user["streak"]
     )
 
-    user = cur.fetchone()
-
-    if user["last_daily"] == today:
-        msg = "You already solved today's challenge 🔥"
-        q = None
-    else:
-        q = generate_daily_question()
-        msg = None
-
-    cur.close()
-    conn.close()
-
-    return render_template("daily.html", question=q, msg=msg, streak=user["streak"])
 
 
-@app.route("/submit_daily",methods=["POST"])
+@app.route("/submit_daily", methods=["POST"])
 def submit_daily():
     if "user" not in session:
         return jsonify({"reply":"login first"})
 
     today = str(date.today())
 
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cur.execute(
-        "SELECT * FROM users WHERE email=%s",
-        (session["user"],)
-    )
+        cur.execute(
+            "SELECT * FROM users WHERE email=%s",
+            (session["user"],)
+        )
 
-    user = cur.fetchone()
+        user = cur.fetchone()
 
-    if user["last_daily"] == today:
+        if user["last_daily"] == today:
+            return jsonify({"reply":"Already completed today"})
+
+        new_streak = user["streak"] + 1
+        bonus = 20 + (new_streak * 5)
+
+        cur.execute("""
+            UPDATE users
+            SET score=score+%s, xp=xp+%s, streak=%s, last_daily=%s
+            WHERE email=%s
+        """,
+            (bonus, bonus, new_streak, today, session["user"])
+        )
+
+        conn.commit()
+
+    except Exception as e:
+        print("Submit daily error:", e)
+        return jsonify({"reply":"Daily submission failed"})
+
+    finally:
         cur.close()
         conn.close()
-        return jsonify({"reply":"Already completed today"})
 
-    new_streak = user["streak"] + 1
-    bonus = 20 + (new_streak * 5)
+    return jsonify({
+        "reply":f"🔥 Daily completed! +{bonus} XP",
+        "streak":new_streak
+    })
 
-    cur.execute("""
-        UPDATE users
-        SET score=score+%s, xp=xp+%s, streak=%s, last_daily=%s
-        WHERE email=%s
-    """,
-        (bonus, bonus, new_streak, today, session["user"])
-    )
-
-    conn.commit()
-    cur.close()
-    conn.close()
-
-    return jsonify({"reply":f"🔥 Daily completed! +{bonus} XP","streak":new_streak})
 
 
 
@@ -706,7 +822,17 @@ def submit_daily():
 @app.route("/voice", methods=["POST"])
 def voice():
 
-    text = request.json["text"]
+    if "user" not in session:
+        return jsonify({"audio": None})
+
+    if not ELEVEN_API_KEY:
+        print("ElevenLabs key missing")
+        return jsonify({"audio": None})
+
+    text = request.json.get("text", "")
+
+    if not text:
+        return jsonify({"audio": None})
 
     try:
         url = "https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL"
@@ -721,36 +847,54 @@ def voice():
             "model_id": "eleven_monolingual_v1"
         }
 
-        response = requests.post(url, json=data, headers=headers)
+        response = requests.post(url, json=data, headers=headers, timeout=30)
 
-        with open("static/voice.mp3", "wb") as f:
+        if response.status_code != 200:
+            print("ElevenLabs error:", response.text)
+            return jsonify({"audio": None})
+
+        # 🔥 Unique file per request
+        filename = f"voice_{uuid.uuid4().hex}.mp3"
+        filepath = os.path.join("static", filename)
+
+        with open(filepath, "wb") as f:
             f.write(response.content)
 
-        return jsonify({"audio":"/static/voice.mp3"})
+        return jsonify({"audio": f"/static/{filename}"})
 
     except Exception as e:
-        return jsonify({"audio":None})
+        print("Voice error:", e)
+        return jsonify({"audio": None})
 
 
 
 # ---------------- LEADERBOARD ----------------
-
 @app.route("/leaderboard")
 def leaderboard():
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cur.execute("SELECT name, score, xp FROM users ORDER BY score DESC")
-    users = cur.fetchall()
+    if "user" not in session:
+        return redirect("/login")
 
-    cur.close()
-    conn.close()
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cur.execute("SELECT name, score, xp FROM users ORDER BY score DESC")
+        users = cur.fetchall()
+
+    except Exception as e:
+        print("Leaderboard error:", e)
+        users = []
+
+    finally:
+        cur.close()
+        conn.close()
 
     data = []
     rank = 1
 
     for u in users:
-        rating = 0 + (u["score"] * 5) + (u["xp"] * 2)
+        rating = (u["score"] * 5) + (u["xp"] * 2)
         data.append({
             "rank": rank,
             "name": u["name"],
@@ -763,23 +907,37 @@ def leaderboard():
     return render_template("leaderboard.html", users=data)
 
 
-@app.route("/interview_select")
-def interview_select():
-    return render_template("interview_select.html")
-
-@app.route("/interview")
-def interview():
-    return render_template("interview.html")
 
 
 # ---------------- INTERVIEW SYSTEM ----------------
+@app.route("/interview_select")
+def interview_select():
+    if "user" not in session:
+        return redirect("/login")
+    return render_template("interview_select.html")
+
+
+@app.route("/interview")
+def interview():
+    if "user" not in session:
+        return redirect("/login")
+    return render_template("interview.html")
+
+
 @app.route("/start_interview", methods=["POST"])
 def start_interview():
-    data = request.json
-    session["company"] = data["company"]
+
+    if "user" not in session:
+        return jsonify({"ok": False}), 401
+
+    data = request.json or {}
+
+    session["company"] = data.get("company", "Google")
     session["round"] = 1
     session["score"] = 0
-    return jsonify({"ok":True})
+
+    return jsonify({"ok": True})
+
 
 @app.route("/interview_ai", methods=["POST"])
 def interview_ai():
@@ -787,7 +945,9 @@ def interview_ai():
     if "user" not in session:
         return jsonify({"reply":"login first"})
 
-    msg = request.json["msg"]
+    data = request.json or {}
+    msg = data.get("msg", "")
+
     company = session.get("company","Google")
     round_no = session.get("round",1)
     score = session.get("score",0)
@@ -800,7 +960,6 @@ def interview_ai():
         session["last_question"] = q
         return jsonify({"reply":q})
 
-    # -------- AI JUDGE BASED ON QUESTION + ANSWER --------
     last_q = session.get("last_question","")
 
     judge_prompt = f"""
@@ -837,13 +996,18 @@ Excellent → 9-10
         )
 
         data = response.json()
-        judge_reply = data["choices"][0]["message"]["content"]
 
-        import re
+        if "choices" in data and len(data["choices"]) > 0:
+            judge_reply = data["choices"][0]["message"]["content"]
+        else:
+            print("Interview AI error:", data)
+            judge_reply = "Score: 5/10\nFeedback: AI response error."
+
         match = re.search(r'(\d+)/10', judge_reply)
-        gained = int(match.group(1)) if match else 4
+        gained = int(match.group(1)) if match else 5
 
-    except:
+    except Exception as e:
+        print("Interview AI crash:", e)
         judge_reply = "Score: 5/10\nFeedback: Could not evaluate properly."
         gained = 5
 
@@ -878,24 +1042,31 @@ Excellent → 9-10
         else:
             result = "REJECTED ❌"
 
-        conn = get_db()
-        cur = conn.cursor()
+        try:
+            conn = get_db()
+            cur = conn.cursor()
 
-        cur.execute(
-            "UPDATE users SET score=score+%s, xp=xp+%s WHERE email=%s",
-            (score, score, session["user"])
-        )
+            cur.execute(
+                "UPDATE users SET score=score+%s, xp=xp+%s WHERE email=%s",
+                (score, score, session["user"])
+            )
 
-        conn.commit()
-        cur.close()
-        conn.close()
+            conn.commit()
 
+        except Exception as e:
+            print("Interview final DB error:", e)
+
+        finally:
+            cur.close()
+            conn.close()
 
         return jsonify({
             "reply": judge_reply + "\n\nInterview Finished.",
             "result": result,
             "score": score
         })
+
+
 
 
 # -------- ADMIN PANEL --------
@@ -905,25 +1076,33 @@ def admin():
     if "user" not in session:
         return redirect("/login")
 
-    # Only you can access admin
     if session["user"] != "anshuraj02092006@gmail.com":
         return redirect("/dashboard")
 
-    conn = get_db()
-    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cur.execute(
-        "SELECT name, email, score, xp FROM users ORDER BY score DESC"
-    )
+        cur.execute(
+            "SELECT id, name, email, score, xp FROM users ORDER BY score DESC"
+        )
 
-    users = cur.fetchall()
+        users = cur.fetchall()
 
-    total_users = len(users)
-    total_score = sum(u["score"] for u in users)
-    total_xp = sum(u["xp"] for u in users)
+        total_users = len(users)
+        total_score = sum(u["score"] for u in users)
+        total_xp = sum(u["xp"] for u in users)
 
-    cur.close()
-    conn.close()
+    except Exception as e:
+        print("Admin error:", e)
+        users = []
+        total_users = 0
+        total_score = 0
+        total_xp = 0
+
+    finally:
+        cur.close()
+        conn.close()
 
     return render_template(
         "admin.html",
@@ -932,6 +1111,7 @@ def admin():
         total_score=total_score,
         total_xp=total_xp
     )
+
 
 @app.route("/delete_user/<int:user_id>")
 def delete_user(user_id):
@@ -942,16 +1122,29 @@ def delete_user(user_id):
     if session["user"] != "anshuraj02092006@gmail.com":
         return redirect("/dashboard")
 
-    conn = get_db()
-    cur = conn.cursor()
+    try:
+        conn = get_db()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-    cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
-    conn.commit()
+        # Prevent deleting yourself
+        cur.execute("SELECT email FROM users WHERE id=%s", (user_id,))
+        target = cur.fetchone()
 
-    cur.close()
-    conn.close()
+        if target and target["email"] == session["user"]:
+            return redirect("/admin")
+
+        cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
+        conn.commit()
+
+    except Exception as e:
+        print("Delete user error:", e)
+
+    finally:
+        cur.close()
+        conn.close()
 
     return redirect("/admin")
+
 
 
 # ---------------- BATTLE QUESTION GENERATOR ----------------
@@ -975,32 +1168,39 @@ Return STRICT JSON in this format:
 Only return JSON. No explanation.
 """
 
-    response = requests.post(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": "openai/gpt-3.5-turbo",
-            "messages": [{"role": "user", "content": prompt}]
-        }
-    )
-
-    data = response.json()
-
     try:
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "openai/gpt-3.5-turbo",
+                "messages": [{"role": "user", "content": prompt}]
+            },
+            timeout=40
+        )
+
+        data = response.json()
+
+        if "choices" not in data or len(data["choices"]) == 0:
+            raise Exception("Invalid AI response")
+
         content = data["choices"][0]["message"]["content"]
+
         import json
         return json.loads(content)
-    except:
-        # fallback question if AI fails
+
+    except Exception as e:
+        print("Battle question error:", e)
         return {
             "question": "Reverse an array.",
             "tests": [
                 {"input": "1 2 3 4 5", "output": "5 4 3 2 1"}
             ]
         }
+
 
 
 
@@ -1016,19 +1216,24 @@ battle_rooms = {}
 battle_timers = {}
 
 
+
 @socketio.on("join_battle")
 def handle_join(data):
     global waiting_players
 
-    language = data.get("language")
+    try:
+        language = data.get("language", "python")
 
-    if language not in waiting_players:
-        language = "python"
+        if language not in waiting_players:
+            language = "python"
 
-    if waiting_players[language] is None:
-        waiting_players[language] = request.sid
-        emit("waiting")
-    else:
+        # First player waits
+        if waiting_players[language] is None:
+            waiting_players[language] = request.sid
+            emit("waiting")
+            return
+
+        # Second player joins → Create room
         room_id = str(uuid.uuid4())
 
         question_data = generate_battle_question(language)
@@ -1037,8 +1242,8 @@ def handle_join(data):
             "players": [waiting_players[language], request.sid],
             "submissions": {},
             "language": language,
-            "question": question_data["question"],
-            "tests": question_data["tests"]
+            "question": question_data.get("question", ""),
+            "tests": question_data.get("tests", [])
         }
 
         battle_timers[room_id] = 1200
@@ -1046,7 +1251,6 @@ def handle_join(data):
         join_room(room_id, sid=waiting_players[language])
         join_room(room_id)
 
-        # ONLY send room id (question template se load hoga)
         socketio.emit("battle_start", {
             "room": room_id
         }, room=room_id)
@@ -1055,11 +1259,20 @@ def handle_join(data):
 
         waiting_players[language] = None
 
+    except Exception as e:
+        print("Battle join error:", e)
+        emit("error", {"msg": "Battle setup failed"})
+
 
 
 @app.route("/battle_test")
 def battle_test():
+
+    if "user" not in session:
+        return redirect("/login")
+
     return render_template("battle_test.html")
+
 
 
 # ---------------- BATTLE ROOM ----------------
@@ -1075,8 +1288,8 @@ def battle_room(room_id):
     return render_template(
         "battle_room.html",
         room_id=room_id,
-        question=room_data["question"],
-        language=room_data["language"]
+        question=room_data.get("question", ""),
+        language=room_data.get("language", "python")
     )
 
 
@@ -1084,7 +1297,11 @@ def battle_room(room_id):
 
 @socketio.on("join_room")
 def handle_room(data):
+
     room = data.get("room")
+
+    if room not in battle_rooms:
+        return
 
     join_room(room)
 
@@ -1097,8 +1314,12 @@ def handle_room(data):
 
 @socketio.on("submit_code")
 def handle_submit(data):
+
     room = data.get("room")
     code = data.get("code")
+
+    if room not in battle_rooms:
+        return
 
     print("SUBMIT FROM:", request.sid)
     print("ROOM:", room)
@@ -1107,23 +1328,21 @@ def handle_submit(data):
 
     print("COUNT:", len(battle_rooms[room]["submissions"]))
 
-
-
     # notify opponent
     emit("opponent_submitted", room=room, skip_sid=request.sid)
-
 
     # if both submitted
     if len(battle_rooms[room]["submissions"]) == 2:
         socketio.start_background_task(judge_battle, room)
 
 
+
 # ---------------- TIMER ENGINE ----------------
 
 def start_timer(room_id):
+
     while True:
 
-        # STOP if room deleted
         if room_id not in battle_timers:
             break
 
@@ -1146,13 +1365,20 @@ def start_timer(room_id):
 # ---------------- AI JUDGE ----------------
 
 # ---------------- REAL TEST CASE JUDGE ----------------
+
 def judge_battle(room_id):
+
+    if room_id not in battle_rooms:
+        return
 
     room_data = battle_rooms[room_id]
     submissions = room_data["submissions"]
     tests = room_data["tests"]
 
     sids = list(submissions.keys())
+
+    if len(sids) == 0:
+        return
 
     if len(sids) < 2:
         winner = sids[0]
@@ -1177,7 +1403,11 @@ def judge_battle(room_id):
             "winner": winner,
             "your_id": sid
         }, room=sid)
+
+    # Cleanup
+    battle_rooms.pop(room_id, None)
     battle_timers.pop(room_id, None)
+
 
 
 
@@ -1185,7 +1415,6 @@ def run_tests(code, tests):
 
     score = 0
 
-    # 🔥 auto detect function name
     match = re.search(r'def\s+(\w+)\s*\(', code)
     if not match:
         return 0
@@ -1204,6 +1433,8 @@ if __name__ == "__main__":
     result = {function_name}(numbers)
     print(result)
 """
+
+        file_name = None
 
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as f:
@@ -1224,19 +1455,21 @@ if __name__ == "__main__":
             if output == expected:
                 score += 1
 
+        except subprocess.TimeoutExpired:
+            print("Timeout error")
+
         except Exception as e:
             print("Judge Error:", e)
 
         finally:
-            try:
+            if file_name and os.path.exists(file_name):
                 os.remove(file_name)
-            except:
-                pass
 
     return score
 
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":
-    socketio.run(app, debug=True)
+    socketio.run(app, debug=False)
+
 
