@@ -123,10 +123,6 @@ font-weight:600;
 cursor:pointer;
 }
 
-.card button:hover{
-transform:scale(1.05);
-}
-
 .logout{
 margin-top:40px;
 background:red;
@@ -145,6 +141,61 @@ cursor:pointer;
 
 <h1>Welcome, {{user}} 🚀</h1>
 
+<!-- ================= OVERALL READINESS ================= -->
+
+{% set readiness_color = "#22c55e" %}
+{% if readiness < 50 %}
+    {% set readiness_color = "#ef4444" %}
+{% elif readiness < 75 %}
+    {% set readiness_color = "#facc15" %}
+{% endif %}
+
+<div class="stat" style="margin-bottom:25px;">
+<h3>🎯 Overall Interview Readiness</h3>
+<h2 style="color:{{ readiness_color }}">{{ readiness }}%</h2>
+
+<div style="height:10px;background:#1e293b;border-radius:10px;overflow:hidden;margin-top:10px;">
+<div style="height:100%;width:{{ readiness }}%;background:{{ readiness_color }};"></div>
+</div>
+</div>
+
+<!-- ================= RECOMMENDED FOCUS ================= -->
+
+{% if recommended_topic %}
+<div class="stat" style="margin-bottom:25px;">
+<h3 style="color:#facc15;">🔥 Recommended Focus</h3>
+<h2 style="color:#facc15;">{{ recommended_topic }}</h2>
+
+{% set focus_color = "#22c55e" %}
+{% if readiness < 50 %}
+    {% set focus_color = "#ef4444" %}
+{% elif readiness < 75 %}
+    {% set focus_color = "#facc15" %}
+{% endif %}
+
+<button 
+style="
+margin-top:15px;
+padding:12px 26px;
+border:none;
+border-radius:25px;
+background: {{ focus_color }};
+font-weight:600;
+cursor:pointer;
+color:black;
+box-shadow:0 0 15px {{ focus_color }};
+transition:all 0.3s ease;
+"
+onmouseover="this.style.transform='scale(1.08)'"
+onmouseout="this.style.transform='scale(1)'"
+onclick="window.location.href='/focus_practice/{{ recommended_topic | urlencode }}'">
+🔥 Fix This Now
+</button>
+
+</div>
+{% endif %}
+
+
 <!-- ===== STATS ===== -->
 <div class="stats">
 
@@ -153,9 +204,12 @@ cursor:pointer;
 <h2>{{score}}</h2>
 </div>
 
-<div class="stat">
+<div class="stat" onclick="window.location.href='/weak_topics'" style="cursor:pointer;">
 <h3>Weak Topic</h3>
 <h2 style="color:#facc15">{{weak}}</h2>
+<p style="font-size:13px;color:#94a3b8;margin-top:8px;">
+Click to view all weak topics →
+</p>
 </div>
 
 <div class="stat">
@@ -200,13 +254,17 @@ cursor:pointer;
 </div>
 {% endif %}
 
-
 <div class="card">
 <h3>🔥 Daily Challenge</h3>
 <p>Solve today's global challenge + streak bonus</p>
 <button onclick="window.location.href='/daily'">Start</button>
 </div>
 
+<div class="card">
+<h3>⚔ Battle Mode</h3>
+<p>Compete live with real coders</p>
+<button onclick="window.location.href='/battle_test'">Start</button>
+</div>
 
 </div>
 
@@ -216,4 +274,3 @@ cursor:pointer;
 
 </body>
 </html>
-
