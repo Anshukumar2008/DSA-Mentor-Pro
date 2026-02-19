@@ -468,6 +468,52 @@ def chat():
     return render_template("chat.html")
 
 
+# ---------------- CHAT AI ----------------
+@app.route("/ask", methods=["POST"])
+def ask():
+
+    if "user" not in session:
+        return jsonify({"reply": "Login required"}), 401
+
+    user_msg = request.json.get("message")
+
+    if not user_msg:
+        return jsonify({"reply": "Empty message"})
+
+    try:
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "openai/gpt-3.5-turbo",
+                "messages": [
+                    {"role": "system", "content": "You are a helpful DSA mentor."},
+                    {"role": "user", "content": user_msg}
+                ]
+            },
+            timeout=60
+        )
+
+        data = response.json()
+
+        if "choices" in data and len(data["choices"]) > 0:
+            reply = data["choices"][0]["message"]["content"]
+        else:
+            print("OpenRouter error:", data)
+            reply = "AI returned unexpected response."
+
+    except Exception as e:
+        print("Chat AI error:", e)
+        reply = "AI service temporarily unavailable."
+
+    return jsonify({"reply": reply})
+
+
+
+
 # ---------------- FOCUS PRACTICE ----------------
 @app.route("/focus_practice/<topic>")
 def focus_practice(topic):
@@ -1476,6 +1522,7 @@ if __name__ == "__main__":
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     socketio.run(app, debug=False)
+
 
 
 
