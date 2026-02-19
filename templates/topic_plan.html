@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Improvement Plan</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+<style>
+
+.plan-box{
+background:rgba(255,255,255,0.05);
+padding:25px;
+border-radius:18px;
+line-height:1.8;
+white-space:pre-line;
+margin-top:20px;
+box-shadow:0 0 15px rgba(56,189,248,0.2);
+}
+
+.section-title{
+margin-top:40px;
+margin-bottom:15px;
+color:#38bdf8;
+}
+
+.stats-container{
+display:flex;
+gap:20px;
+flex-wrap:wrap;
+margin-top:20px;
+}
+
+.stat-card{
+flex:1;
+min-width:180px;
+background:rgba(255,255,255,0.05);
+padding:20px;
+border-radius:18px;
+text-align:center;
+box-shadow:0 0 12px rgba(255,255,255,0.05);
+}
+
+.stat-value{
+font-size:22px;
+font-weight:bold;
+margin-top:8px;
+}
+
+.readiness-bar-container{
+margin-top:25px;
+height:14px;
+background:#1e293b;
+border-radius:12px;
+overflow:hidden;
+}
+
+.readiness-bar{
+height:100%;
+transition:width 0.6s ease;
+}
+
+.score-container{
+display:flex;
+gap:12px;
+margin-top:25px;
+align-items:flex-end;
+flex-wrap:wrap;
+}
+
+.score-bar{
+width:45px;
+border-radius:8px;
+display:flex;
+align-items:flex-end;
+justify-content:center;
+font-size:12px;
+color:white;
+transition:0.4s;
+animation:grow 0.8s ease forwards;
+}
+
+@keyframes grow{
+from{height:0}
+}
+
+.score-bar:hover{
+transform:translateY(-5px);
+}
+
+.recommend-box{
+margin-top:30px;
+padding:20px;
+border-radius:15px;
+background:rgba(34,197,94,0.1);
+border:1px solid #22c55e;
+}
+
+.back-btn{
+margin-top:45px;
+padding:12px 25px;
+border:none;
+border-radius:18px;
+background:linear-gradient(90deg,#38bdf8,#22c55e);
+cursor:pointer;
+font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1 class="neon">🧠 Improvement Plan: {{ topic }}</h1>
+
+<!-- ================= AI PLAN ================= -->
+
+<div class="plan-box">
+{{ plan }}
+</div>
+
+<!-- ================= PERFORMANCE INSIGHTS ================= -->
+
+<h2 class="section-title">📊 Performance Insights</h2>
+
+{% if scores %}
+
+<div class="stats-container">
+
+<div class="stat-card">
+<div>Average Score</div>
+<div class="stat-value" style="color:#38bdf8;">
+{{ avg_score }}/10
+</div>
+</div>
+
+<div class="stat-card">
+<div>Trend</div>
+<div class="stat-value">
+{{ trend }}
+</div>
+</div>
+
+<div class="stat-card">
+<div>Consistency</div>
+<div class="stat-value" style="color:#facc15;">
+{{ consistency }}%
+</div>
+</div>
+
+<div class="stat-card">
+<div>Interview Ready</div>
+<div class="stat-value"
+style="
+color:
+{% if readiness < 50 %}
+#ef4444
+{% elif readiness < 75 %}
+#facc15
+{% else %}
+#22c55e
+{% endif %}
+;">
+{{ readiness }}%
+</div>
+</div>
+
+</div>
+
+<!-- ================= READINESS PROGRESS BAR ================= -->
+
+<div class="readiness-bar-container">
+<div class="readiness-bar"
+style="
+width:{{ readiness }}%;
+background:
+{% if readiness < 50 %}
+linear-gradient(90deg,#ef4444,#f87171)
+{% elif readiness < 75 %}
+linear-gradient(90deg,#facc15,#fde047)
+{% else %}
+linear-gradient(90deg,#22c55e,#4ade80)
+{% endif %}
+;">
+</div>
+</div>
+
+<!-- ================= SCORE GRAPH ================= -->
+
+<h2 class="section-title">📈 Last 10 Attempts</h2>
+
+<div class="score-container">
+
+{% for s in scores %}
+
+{% if s >= 8 %}
+    {% set bar_color = "linear-gradient(180deg,#22c55e,#4ade80)" %}
+{% elif s >= 5 %}
+    {% set bar_color = "linear-gradient(180deg,#facc15,#fde047)" %}
+{% else %}
+    {% set bar_color = "linear-gradient(180deg,#ef4444,#f87171)" %}
+{% endif %}
+
+<div class="score-bar"
+style="height:{{ s * 12 }}px; background: {{ bar_color }};">
+{{ s }}
+</div>
+
+{% endfor %}
+
+</div>
+
+<!-- ================= SMART RECOMMENDATION ================= -->
+
+<div class="recommend-box">
+
+{% if readiness < 50 %}
+⚠ You are not interview ready yet. Focus on fundamentals and solve easy-medium problems daily.
+{% elif readiness < 75 %}
+🚀 You are progressing well. Increase difficulty gradually and practice timed problems.
+{% else %}
+🔥 Strong performance! Start solving real interview-level and mock interview questions.
+{% endif %}
+
+</div>
+
+{% else %}
+
+<p style="color:#94a3b8;margin-top:15px;">
+No performance data yet.
+</p>
+
+{% endif %}
+
+<br><br>
+
+<button class="back-btn"
+onclick="window.location.href='/weak_topics'">
+⬅ Back
+</button>
+
+</div>
+</body>
+</html>

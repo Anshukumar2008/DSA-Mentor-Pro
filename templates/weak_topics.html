@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Weak Topics - DSA Mentor Pro</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+<style>
+
+.highlight-card{
+background:rgba(239,68,68,0.08);
+border:1px solid #ef4444;
+padding:35px;
+border-radius:22px;
+margin-bottom:40px;
+box-shadow:0 0 25px rgba(239,68,68,0.4);
+text-align:center;
+}
+
+.highlight-card h1{
+color:#facc15;
+font-size:38px;
+margin-top:8px;
+}
+
+.section-title{
+margin-top:35px;
+margin-bottom:20px;
+font-size:24px;
+color:#38bdf8;
+}
+
+.progress-bar{
+height:10px;
+background:#1e293b;
+border-radius:10px;
+margin-top:8px;
+overflow:hidden;
+}
+
+.progress-fill{
+height:100%;
+border-radius:10px;
+transition:width 0.6s ease;
+}
+
+.topic-card{
+padding:18px;
+border-radius:18px;
+background:rgba(255,255,255,0.03);
+margin-bottom:20px;
+transition:0.3s;
+}
+
+.topic-card:hover{
+transform:translateY(-3px);
+box-shadow:0 0 15px rgba(56,189,248,0.3);
+}
+
+.small-btn{
+margin-top:8px;
+padding:5px 12px;
+background:#38bdf8;
+border:none;
+border-radius:10px;
+cursor:pointer;
+font-size:12px;
+}
+
+.back-btn{
+margin-top:40px;
+padding:12px 28px;
+border:none;
+border-radius:20px;
+background:linear-gradient(90deg,#38bdf8,#22c55e);
+font-weight:bold;
+cursor:pointer;
+}
+
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1 class="neon">📉 Your Weak Topics Analytics</h1>
+
+<!-- ========== MOST WEAK ========== -->
+
+{% if most_weak %}
+<div class="highlight-card">
+
+<h2 style="color:#ef4444;">⚠ Most Weak Area</h2>
+<h1>{{ most_weak.topic }}</h1>
+
+<p style="color:#94a3b8;">
+Weak {{ most_weak.count }} times <br>
+Improvement: {{ most_weak.improvement }}%
+</p>
+
+<button 
+style="margin-top:15px;padding:10px 25px;
+background:linear-gradient(90deg,#ef4444,#facc15);
+border:none;border-radius:15px;font-weight:bold;cursor:pointer;"
+onclick="window.location.href='/focus_practice/{{ most_weak.topic }}'">
+🎯 Practice This Topic
+</button>
+
+</div>
+{% endif %}
+
+<!-- ========== INTENSITY GRAPH ========== -->
+
+<h2 class="section-title">Weakness Distribution</h2>
+
+{% for t in topics %}
+<div class="topic-card">
+
+<div style="display:flex;justify-content:space-between;align-items:center;">
+<div>
+<span style="color:#facc15;font-weight:bold;font-size:16px;">
+{{ t.topic }}
+</span>
+
+<br>
+
+<span style="color:#94a3b8;font-size:13px;">
+Weak: {{ t.count }} | Improvement: {{ t.improvement }}%
+</span>
+
+<br>
+
+{% if t.mastery == "Beginner" %}
+<span style="color:#ef4444;">🔴 Beginner</span>
+{% elif t.mastery == "Intermediate" %}
+<span style="color:#facc15;">🟡 Intermediate</span>
+{% else %}
+<span style="color:#22c55e;">🟢 Strong</span>
+{% endif %}
+
+</div>
+
+<div>
+
+<button class="small-btn"
+onclick="window.location.href='/topic_plan/{{ t.topic }}'">
+🧠 Plan
+</button>
+
+
+</div>
+
+</div>
+
+<div class="progress-bar">
+<div class="progress-fill"
+style="width:{{ t.percentage }}%;
+background:
+{% if t.mastery == 'Beginner' %}
+linear-gradient(90deg,#ef4444,#f87171);
+{% elif t.mastery == 'Intermediate' %}
+linear-gradient(90deg,#facc15,#fde047);
+{% else %}
+linear-gradient(90deg,#22c55e,#4ade80);
+{% endif %}
+">
+</div>
+</div>
+
+</div>
+{% endfor %}
+
+<!-- ========== TABLE VIEW ========== -->
+
+<h2 class="section-title">Detailed Breakdown</h2>
+
+{% if topics %}
+<table>
+<tr>
+<th>#</th>
+<th>Topic</th>
+<th>Weak</th>
+<th>Improvement</th>
+<th>Mastery</th>
+</tr>
+
+{% for t in topics %}
+<tr>
+<td>{{ loop.index }}</td>
+<td style="color:#facc15;font-weight:bold;">{{ t.topic }}</td>
+<td>{{ t.count }}</td>
+<td>{{ t.improvement }}%</td>
+<td>
+{% if t.mastery == "Beginner" %}
+<span style="color:#ef4444;">🔴 Beginner</span>
+{% elif t.mastery == "Intermediate" %}
+<span style="color:#facc15;">🟡 Intermediate</span>
+{% else %}
+<span style="color:#22c55e;">🟢 Strong</span>
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</table>
+{% else %}
+<p style="color:#94a3b8;">No weak topics yet.</p>
+{% endif %}
+
+<center>
+<button class="back-btn"
+onclick="window.location.href='/dashboard'">
+⬅ Back Dashboard
+</button>
+</center>
+
+</div>
+</body>
+</html>
