@@ -443,6 +443,9 @@ Generate:
         print("AI error:", e)
         reply = "AI service temporarily unavailable."
 
+        # -------- READINESS FIX --------
+    readiness = consistency
+
     return render_template(
         "topic_plan.html",
         topic=topic,
@@ -450,8 +453,10 @@ Generate:
         scores=scores,
         avg_score=avg_score,
         trend=trend,
-        consistency=consistency
+        consistency=consistency,
+        readiness=readiness
     )
+
 
 
 
@@ -1471,5 +1476,6 @@ if __name__ == "__main__":
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     socketio.run(app, debug=False)
+
 
 
