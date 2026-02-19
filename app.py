@@ -34,7 +34,10 @@ socketio = SocketIO(app)
 
 # ---------------- DATABASE ----------------
 def get_db():
-    database_url = "postgresql://postgres:Anshu3554@@localhost:5432/dsa_local"
+    database_url = os.environ.get("DATABASE_URL")
+
+    if not database_url:
+        raise Exception("DATABASE_URL not found. Set it in Render environment variables.")
 
     result = urlparse(database_url)
 
@@ -43,7 +46,8 @@ def get_db():
         user=result.username,
         password=result.password,
         host=result.hostname,
-        port=result.port
+        port=result.port,
+        sslmode="require"   # 🔥 Required for Render Postgres
     )
 
     return conn
@@ -95,6 +99,7 @@ def init_db():
     conn.close()
 
 
+# 🔥 Initialize DB on startup
 init_db()
 
 
@@ -1234,3 +1239,4 @@ if __name__ == "__main__":
 # ---------------- RUN ----------------
 if __name__ == "__main__":
     socketio.run(app, debug=True)
+
